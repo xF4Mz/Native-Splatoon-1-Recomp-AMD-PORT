@@ -1,0 +1,25 @@
+# Build output
+build/
+*.exe
+*.obj
+*.pdb
+
+# Generated code: it's a translation of the program you recompiled.
+# For a commercial game that's the game's own code, so it never goes here.
+recomp/
+generated/
+chunks/
+
+# Game files: never commit these.
+*.rpx
+*.rpl
+*.wux
+*.wud
+*.wua
+*.iso
+code/
+content/
+meta/
+keys.txt
+*.key
+

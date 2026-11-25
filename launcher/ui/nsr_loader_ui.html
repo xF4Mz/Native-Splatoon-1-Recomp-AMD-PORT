@@ -1,0 +1,609 @@
+<!doctype html><html><head><meta charset="utf-8"><title>NSR</title>
+<!-- NSR launcher page, Nov 25 2026: a 2015 console home-menu look (white glossy tiles, labels, a speech bubble on hover)
+     floating over a live dark ocean (a small WebGL shader: waves, glints, caustics, light shafts; drawn at 3/10 of the
+     window's pixels, at most 60 times a second, paused when hidden). 8 tiles: the logo tile in the corner + 7 in the grid.
+     Our own drawings only (the NSR logo is the project's own art, assets/nsr_logo.png): no Nintendo logos, icons or fonts.
+     Layout: a 1600 x 900 stage, 1rem = one stage pixel, scaled to the window; the water and the screens fill the window.
+     Talks to NSR.exe as before (launcher/nsr.c push_state / msg_invoke) plus "opt:*" for the settings screen (falls back to
+     the old "settings" popup when NSR.exe sends no "opts"). Mouse, keyboard and game pads. Earlier pages: ui_backup_2026-11-25. -->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{font-size:min(calc(100vw / 1600),calc(100vh / 900))}
+html,body{height:100%}
+body{overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none;color:#e6f0ff;font-family:"Segoe UI",sans-serif;background:#061433}
+[hidden]{display:none!important}
+#sea{position:fixed;inset:0;width:100vw;height:100vh;z-index:0;display:block;background:radial-gradient(ellipse at 50% 0%,#123782,#0a2259 50%,#061433)}
+.stage{position:relative;z-index:1;width:1600rem;height:900rem;flex:none}
+.R{font-family:"Arial Rounded MT Bold","Segoe UI Semibold","Segoe UI",sans-serif;font-weight:normal}
+
+/* ---- the corner tile ---- */
+.me{position:absolute;left:46rem;top:34rem;width:132rem;height:132rem;border-radius:26rem;padding:9rem;cursor:pointer;
+ background:linear-gradient(180deg,#ffffff,#dbe6f5);border:1rem solid #9fb6d8;box-shadow:0 12rem 24rem rgba(0,6,30,.6),inset 0 2rem 0 #fff;transition:transform .14s cubic-bezier(.3,1.6,.5,1)}
+.me:hover{transform:translateY(-4rem)}
+.me img{width:100%;height:100%;border-radius:18rem;display:block}
+.me.sel{border:6rem solid #3ed6ff;padding:4rem;box-shadow:0 0 0 4rem rgba(62,214,255,.25),0 0 30rem rgba(62,214,255,.35),0 12rem 24rem rgba(0,6,30,.6)}
+.dev{position:absolute;left:150rem;top:22rem;z-index:3;padding:5rem 12rem 6rem;border-radius:9rem;font-size:15rem;color:#fff;letter-spacing:1rem;
+ background:linear-gradient(180deg,#ffa23a,#f06a00);box-shadow:0 3rem 8rem rgba(0,0,20,.5),inset 0 1rem 0 rgba(255,255,255,.5)}
+.ver{position:absolute;right:48rem;top:44rem;font-size:17rem;color:#9fc8f5;text-shadow:0 2rem 6rem rgba(0,0,20,.8)}
+
+/* ---- tiles: glossy, lit from above, floating over the water ---- */
+.tile{position:absolute;width:190rem;height:190rem;border-radius:32rem;padding:12rem;cursor:pointer;
+ background:linear-gradient(180deg,#ffffff 0%,#eef3fa 40%,#d2deef 100%);border:1rem solid #a9bfdf;
+ box-shadow:0 18rem 30rem rgba(0,6,30,.55),0 4rem 6rem rgba(0,6,30,.35),inset 0 2rem 0 #fff,inset 0 -5rem 8rem rgba(40,80,150,.18);
+ transition:transform .16s cubic-bezier(.3,1.6,.5,1),box-shadow .16s}
+.tile::after{content:"";position:absolute;left:12rem;right:12rem;top:12rem;height:44%;border-radius:22rem 22rem 60% 60%/22rem 22rem 26rem 26rem;
+ background:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,0));pointer-events:none;z-index:1}
+.tile::before{content:"";position:absolute;left:8%;right:8%;bottom:-34rem;height:26rem;border-radius:50%;pointer-events:none;
+ background:radial-gradient(ellipse at center,rgba(120,210,255,.30),rgba(120,210,255,0) 70%);transition:opacity .16s}
+.tile:hover{transform:translateY(-7rem)}
+.tile:hover::before{opacity:.6}
+.tile.sel{border:7rem solid #3ed6ff;padding:6rem;box-shadow:0 0 0 4rem rgba(62,214,255,.25),0 0 36rem rgba(62,214,255,.4),0 18rem 30rem rgba(0,6,30,.6),inset 0 2rem 0 #fff}
+.tile.dis{cursor:default}.tile.dis .face{filter:saturate(.3) brightness(.95)}
+.face{position:relative;width:100%;height:100%;border-radius:22rem;overflow:hidden;display:flex;align-items:center;justify-content:center;
+ box-shadow:inset 0 0 0 1rem rgba(0,0,0,.15),inset 0 -8rem 14rem rgba(0,0,40,.22),inset 0 6rem 10rem rgba(255,255,255,.18)}
+.face .sp{position:absolute;inset:0;opacity:.16}
+.face svg.ic{position:relative;width:118rem;height:118rem;filter:drop-shadow(0 6rem 3rem rgba(0,0,30,.28))}
+.tile:hover svg.ic,.tile.sel svg.ic{animation:bounce .5s cubic-bezier(.3,1.7,.5,1)}
+@keyframes bounce{0%{transform:translateY(0) scale(1)}30%{transform:translateY(-9rem) scale(1.05,.96)}60%{transform:translateY(0) scale(.97,1.04)}100%{transform:none}}
+.tl{position:absolute;left:-40rem;right:-40rem;top:calc(100% + 16rem);text-align:center;pointer-events:none;
+ font:23rem "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#eaf4ff;text-shadow:0 2rem 6rem rgba(0,0,20,.9),0 0 2rem rgba(0,0,20,.6)}
+.tile.sel .tl{color:#9ff0ff}
+.badge{position:absolute;right:-8rem;top:-8rem;z-index:2;width:46rem;height:46rem;border-radius:14rem;display:flex;align-items:center;justify-content:center;
+ font:28rem/1 "Arial Rounded MT Bold","Segoe UI",sans-serif;color:#fff;border:3rem solid #fff;box-shadow:0 3rem 8rem rgba(0,0,20,.4)}
+.badge.ok{background:linear-gradient(180deg,#8be84a,#3fae16)}
+.badge.warn{background:linear-gradient(180deg,#ffb04a,#f06a00)}
+/* the big tile */
+.big{width:452rem;height:452rem;border-radius:46rem;padding:16rem}
+.big.sel{padding:10rem}
+.big .face{border-radius:32rem;background:#ff8a12;flex-direction:column}
+.big .face>svg.art{position:absolute;inset:0;width:100%;height:100%}
+.bigT{position:relative;z-index:2;font:italic 100rem/1 "Arial Rounded MT Bold","Segoe UI Black",sans-serif;color:#fff;letter-spacing:1rem;transform:skewX(-6deg) rotate(-4deg);
+ -webkit-text-stroke:9rem #1d2470;paint-order:stroke fill;text-shadow:0 7rem 0 #1d2470}
+.bigS{position:relative;z-index:2;margin-top:18rem;padding:8rem 22rem 9rem;border-radius:999rem;font:24rem "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#1d2470;
+ background:#fff;box-shadow:0 4rem 0 #1d2470}
+.bigG{position:relative;z-index:2;width:96rem;height:96rem;margin-bottom:10rem}
+.dl{position:relative;z-index:2;width:320rem;margin-top:22rem}
+.dl .tr{height:20rem;border-radius:999rem;background:rgba(255,255,255,.85);box-shadow:inset 0 2rem 3rem rgba(0,0,0,.2);padding:3rem}
+.dl .fl{height:100%;width:0;border-radius:999rem;background:linear-gradient(180deg,#6fe6ff,#18a8e0);transition:width .4s}
+.dl .pc{margin-top:8rem;text-align:center;font:26rem "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#fff;-webkit-text-stroke:6rem #1d2470;paint-order:stroke fill}
+
+/* ---- the speech bubble: only while the pointer is on a tile (or a keyboard / pad moved to it) ---- */
+.bub{position:absolute;z-index:20;transform:translateX(-50%);padding:16rem 34rem 18rem;border-radius:28rem;pointer-events:none;white-space:nowrap;text-align:center;
+ background:linear-gradient(180deg,#ffffff,#eaf1f9);border:1rem solid #cfe0f5;box-shadow:0 12rem 30rem rgba(0,6,30,.6)}
+.bub::after{content:"";position:absolute;left:50%;bottom:-16rem;margin-left:-17rem;border:17rem solid transparent;border-bottom:0;border-top-color:#eaf1f9}
+.bub.below::after{bottom:auto;top:-16rem;border:17rem solid transparent;border-top:0;border-bottom-color:#fff}
+.bub b{display:block;font:40rem/1.1 "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#2c3a52}
+.bub small{display:block;max-width:620rem;margin:6rem auto 0;font-size:20rem;color:#6a7891;overflow:hidden;text-overflow:ellipsis}
+.bub small.warn{color:#d0560a}
+
+/* ---- the dock ---- */
+.dock{position:absolute;left:0;right:0;top:712rem;display:flex;justify-content:center;align-items:center;gap:46rem}
+.dk{position:relative;width:92rem;height:92rem;border-radius:26rem;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .14s cubic-bezier(.3,1.6,.5,1)}
+.dk:hover{transform:translateY(-6rem)}
+.dk svg{width:84rem;height:84rem;filter:drop-shadow(0 7rem 5rem rgba(0,0,30,.5))}
+.dk em{position:absolute;top:98rem;left:50%;transform:translateX(-50%);font-style:normal;font-size:17rem;color:#bcd8f7;white-space:nowrap;text-shadow:0 2rem 5rem rgba(0,0,20,.9)}
+.dk.dis{opacity:.4;cursor:default}.dk.dis:hover{transform:none}
+.volp{height:58rem;display:flex;align-items:center;gap:14rem;padding:0 24rem;border-radius:999rem;background:rgba(4,16,48,.55);border:1rem solid rgba(130,200,255,.3);box-shadow:0 8rem 18rem rgba(0,6,30,.45),inset 0 1rem 0 rgba(255,255,255,.08)}
+.volp svg{width:26rem;height:26rem}
+input[type=range]{-webkit-appearance:none;appearance:none;width:170rem;height:12rem;border-radius:999rem;background:linear-gradient(90deg,#3ed6ff var(--v,60%),rgba(0,8,30,.7) var(--v,60%));outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28rem;height:28rem;border-radius:50%;background:linear-gradient(180deg,#fff,#dbe6f5);border:1rem solid #9fb6d8;box-shadow:0 2rem 5rem rgba(0,0,0,.4)}
+.foot{position:absolute;left:0;right:0;bottom:22rem;text-align:center;font-size:17rem;color:#7fa6d8;font-style:italic;text-shadow:0 2rem 5rem rgba(0,0,20,.9)}
+.kf{outline:5rem solid #3ed6ff!important;outline-offset:4rem;border-radius:20rem}
+
+/* ---- the start: the logo drops into the water ---- */
+#intro{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:#0a2259;transition:opacity .7s ease-out}
+#intro img{width:240rem;height:240rem;border-radius:46rem;box-shadow:0 20rem 50rem rgba(0,0,20,.6);animation:introIn .5s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes introIn{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+#intro.dive img{transition:transform .38s cubic-bezier(.6,0,.9,.4),opacity .38s ease-in;transform:translateY(60rem) scale(.15);opacity:0}
+#intro.out{opacity:0;pointer-events:none}
+body.intro .tile,body.intro .me,body.intro .dock,body.intro .dev,body.intro .ver,body.intro .foot{opacity:0;transform:translateY(40rem)}
+.rise{transition:opacity .5s ease-out,transform .6s cubic-bezier(.3,1.5,.5,1)!important}
+
+/* ---- the ink splash between screens ---- */
+#splash{position:fixed;z-index:60;pointer-events:none;width:200px;height:200px;margin:-100px 0 0 -100px;transform:scale(0);opacity:0}
+#splash.go{animation:splash .42s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes splash{0%{transform:scale(.1) rotate(0deg);opacity:.95}65%{opacity:.9}100%{transform:scale(var(--s,14)) rotate(40deg);opacity:0}}
+
+/* ---- screens: glass over the same water (it keeps moving underneath) ---- */
+.scr{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(3,12,40,.72),rgba(2,8,28,.84))}
+.scr.in{animation:scrIn .28s ease-out}
+body.inscr .stage>*:not(.scr){visibility:hidden}   /* (behind a screen: only the water) */
+@keyframes scrIn{from{opacity:0}to{opacity:1}}
+.hd{position:relative;height:150rem;flex:none;display:flex;align-items:center;padding-left:70rem}
+.hd .band{position:absolute;left:-40rem;top:34rem;height:90rem;width:880rem;transform:skewX(-14deg);border-radius:0 18rem 18rem 0;box-shadow:0 6rem 0 rgba(0,0,30,.35)}
+.hd .band::after{content:"";position:absolute;right:-60rem;top:8rem;width:110rem;height:76rem;background:inherit;border-radius:50% 40% 55% 45%;transform:skewX(14deg)}
+.hd .hi{position:relative;width:96rem;height:96rem;border-radius:24rem;padding:7rem;background:linear-gradient(180deg,#fff,#dbe6f5);border:1rem solid #9fb6d8;box-shadow:0 5rem 12rem rgba(0,0,20,.4)}
+.hd .hi .face{border-radius:17rem}.hd .hi svg.ic{width:62rem;height:62rem}
+.hd h1{position:relative;margin-left:26rem;font:italic 58rem/1 "Arial Rounded MT Bold","Segoe UI Black",sans-serif;color:#fff;transform:skewX(-6deg);
+ -webkit-text-stroke:8rem #1d2470;paint-order:stroke fill;text-shadow:0 5rem 0 #1d2470;letter-spacing:1rem}
+.bd{flex:1;min-height:0;width:1180rem;margin:0 auto;padding:22rem 0 0;display:flex;flex-direction:column}
+.ft{height:112rem;flex:none;display:flex;align-items:center;gap:20rem;padding:0 70rem;border-top:1rem solid rgba(130,200,255,.2);background:rgba(2,8,28,.5)}
+.ft .gap{flex:1}
+.card{background:rgba(6,22,64,.62);border:1rem solid rgba(130,200,255,.24);border-radius:24rem;box-shadow:0 10rem 30rem rgba(0,0,20,.35),inset 0 1rem 0 rgba(255,255,255,.07);padding:26rem 32rem;margin-bottom:18rem}
+.bd p{font-size:23rem;line-height:1.5;color:#dcecff;margin-bottom:12rem}
+.bd p.dim{color:#9fc8f5}
+.field{display:flex;gap:16rem;align-items:center;margin:8rem 0 10rem}
+.box{flex:1;min-width:0;padding:16rem 22rem;border-radius:16rem;background:rgba(0,8,30,.65);border:1rem solid rgba(130,200,255,.25);box-shadow:inset 0 3rem 6rem rgba(0,0,0,.3);
+ font:22rem Consolas,monospace;color:#e6f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.box.empty{color:#7fa6d8}
+.msg{font-size:20rem;color:#7fe0a0;min-height:28rem}.msg.warn{color:#ffcf6e}
+.msg .lnk{margin-left:14rem}
+.lnk{color:#9fe4ff;text-decoration:underline;cursor:pointer}
+.meta{display:flex;justify-content:space-between;font-size:20rem;color:#9fc8f5}.meta .warn{color:#ffcf6e}
+.b{height:66rem;padding:0 34rem;border-radius:999rem;display:inline-flex;align-items:center;gap:14rem;cursor:pointer;white-space:nowrap;
+ font:24rem "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#2c3a52;
+ background:linear-gradient(180deg,#ffffff,#dbe6f5);border:1rem solid #9fb6d8;box-shadow:0 4rem 0 #7f98bf,0 8rem 16rem rgba(0,6,30,.45);transition:transform .1s}
+.b:hover{transform:translateY(-2rem)}
+.b:active{transform:translateY(3rem);box-shadow:0 1rem 0 #7f98bf}
+.b.go{color:#fff;background:linear-gradient(180deg,#5ad9f7,#18b2e4 55%,#0f9acd);border-color:#0e8fc0;box-shadow:0 4rem 0 #0b6f99,0 8rem 16rem rgba(0,6,30,.45)}
+.b.red{color:#fff;background:linear-gradient(180deg,#ff7a7a,#e23b3b);border-color:#c22c2c;box-shadow:0 4rem 0 #a51f1f}
+.b.dis{opacity:.42;pointer-events:none}
+.b .k{width:38rem;height:38rem;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#5b636d;color:#fff;font-size:21rem}
+.rows{flex:1;min-height:0;overflow-y:auto;padding:4rem 10rem 10rem 4rem}
+.rows::-webkit-scrollbar{width:14rem}.rows::-webkit-scrollbar-thumb{background:rgba(130,200,255,.35);border-radius:999rem;border:3rem solid transparent;background-clip:padding-box}
+.row{display:flex;align-items:center;gap:22rem;min-height:92rem;padding:14rem 26rem;margin-bottom:12rem;border-radius:22rem;background:rgba(6,22,64,.62);border:1rem solid rgba(130,200,255,.22);
+ box-shadow:inset 0 1rem 0 rgba(255,255,255,.06);cursor:pointer;transition:transform .1s}
+.row:hover{transform:translateX(4rem);border-color:rgba(130,200,255,.6)}
+.row.dis{opacity:.45;cursor:default}.row.dis:hover{transform:none;border-color:rgba(130,200,255,.22)}
+.row .dot{flex:none;width:56rem;height:56rem;border-radius:16rem;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 2rem 0 rgba(255,255,255,.35)}
+.row .dot svg{width:40rem;height:40rem}
+.row .tx{flex:1;min-width:0}
+.row .nm{font:25rem "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#fff}
+.row .ds{font-size:18rem;color:#9fc8f5;margin-top:2rem}
+.row .ss{font-size:17rem;color:#7fe0a0;margin-top:2rem}.row .ss.warn{color:#ffcf6e}
+.sw{flex:none;width:118rem;height:50rem;border-radius:999rem;position:relative;background:rgba(0,8,30,.7);box-shadow:inset 0 3rem 6rem rgba(0,0,0,.5)}
+.sw::before{content:"OFF";position:absolute;right:16rem;top:12rem;font:19rem "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#7fa6d8}
+.sw::after{content:"";position:absolute;left:5rem;top:5rem;width:40rem;height:40rem;border-radius:50%;background:linear-gradient(180deg,#fff,#dbe6f5);box-shadow:0 2rem 4rem rgba(0,0,0,.4);transition:left .18s cubic-bezier(.3,1.6,.5,1)}
+.on .sw{background:linear-gradient(180deg,#5ad9f7,#18b2e4)}
+.on .sw::before{content:"ON";left:18rem;right:auto;color:#fff}
+.on .sw::after{left:73rem}
+.sec{font:22rem "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#7fa6d8;margin:14rem 0 10rem 8rem}
+.dlrow{display:flex;gap:30rem;align-items:center;padding:30rem 34rem}
+.dlrow img{width:150rem;height:150rem;border-radius:26rem;border:1rem solid rgba(160,215,255,.5);box-shadow:0 8rem 18rem rgba(0,0,20,.4)}
+.dlrow .tx{flex:1;min-width:0}
+.dlrow .nm{font:34rem "Arial Rounded MT Bold","Segoe UI Semibold",sans-serif;color:#fff}
+.dlrow .st{font-size:21rem;color:#9fc8f5;margin:6rem 0 16rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dlrow .st.warn{color:#ffcf6e;white-space:normal}
+.track{height:26rem;border-radius:999rem;background:rgba(0,8,30,.65);box-shadow:inset 0 3rem 5rem rgba(0,0,0,.45);padding:4rem}
+.track .fl{height:100%;width:0;border-radius:999rem;background:linear-gradient(180deg,#7ae6ff,#18b2e4 60%,#0f9acd);transition:width .4s;position:relative;overflow:hidden}
+.track .fl::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent);transform:translateX(-100%);animation:sheen 2.4s ease-in-out infinite}
+@keyframes sheen{to{transform:translateX(100%)}}
+.dlrow .nums{display:flex;justify-content:space-between;font-size:20rem;color:#9fc8f5;margin-top:8rem}
+.steps3{display:flex;gap:16rem}
+.steps3 div{flex:1;display:flex;align-items:center;gap:14rem;padding:18rem 22rem;border-radius:18rem;background:rgba(6,22,64,.62);border:1rem solid rgba(130,200,255,.22);font-size:20rem;color:#7fa6d8}
+.steps3 i{flex:none;width:38rem;height:38rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font:20rem/1 "Arial Rounded MT Bold","Segoe UI",sans-serif;font-style:normal;color:#fff;background:rgba(160,200,255,.25)}
+.steps3 .now{color:#fff;border-color:#3ed6ff}.steps3 .now i{background:#18c3ec}
+.steps3 .ok{color:#dcecff}.steps3 .ok i{background:#5cc52a}
+.about{display:flex;gap:40rem;align-items:center}
+.about img{width:240rem;height:240rem;border-radius:40rem;border:1rem solid rgba(160,215,255,.5);box-shadow:0 10rem 24rem rgba(0,0,20,.45)}
+body.still .tile svg.ic{animation:none!important}
+</style></head><body class="intro">
+<canvas id="sea"></canvas>
+<svg width="0" height="0" style="position:absolute"><defs>
+ <path id="splat" d="M50 12Q53 27 61 18Q61 31 76 23Q69 35 87 38Q73 45 85 57Q70 55 72 70Q63 62 57 72L56 86Q53 91 50 86L49 72Q46 67 41 75Q39 62 25 68Q32 55 14 52Q28 45 17 32Q32 35 29 20Q41 29 50 12Z"/>
+ <path id="blob" d="M50 6C62 6 66 18 76 16C88 14 96 26 90 38C86 46 96 54 92 66C88 80 72 78 64 88C56 98 40 96 34 86C28 76 12 82 8 68C4 56 14 50 10 40C6 26 20 18 30 20C38 22 40 6 50 6Z"/>
+ <pattern id="pDots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#fff"/><circle cx="16" cy="15" r="2" fill="#fff"/></pattern>
+ <radialGradient id="gDisc" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#dfe5ec"/><stop offset="1" stop-color="#a9b4c0"/></radialGradient>
+ <symbol id="i_source" viewBox="0 0 100 100"><circle cx="50" cy="52" r="38" fill="url(#gDisc)" stroke="#fff" stroke-width="3"/><path d="M26 34A30 30 0 0 1 50 22" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" opacity=".9"/>
+  <use href="#splat" transform="translate(40 14) scale(.58)" fill="#c6f51c"/><circle cx="84" cy="22" r="4" fill="#c6f51c"/><circle cx="50" cy="52" r="11" fill="#eef2f6" stroke="#9aa6b2" stroke-width="2"/><circle cx="50" cy="52" r="4.5" fill="#9aa6b2"/></symbol>
+ <symbol id="i_dest" viewBox="0 0 100 100"><path d="M10 34L34 25L60 34L90 25V78L60 87L34 78L10 87Z" fill="#fff"/><path d="M34 25V78M60 34V87" stroke="#c8d3dc" stroke-width="2.5"/>
+  <path d="M18 74Q30 60 44 66T70 58" stroke="#0aa08f" stroke-width="4" stroke-dasharray="6 5" fill="none" stroke-linecap="round"/>
+  <path d="M66 8C66 8 48 30 48 42A18 18 0 0 0 84 42C84 30 66 8 66 8Z" fill="#ff7a00" stroke="#fff" stroke-width="3"/><circle cx="66" cy="42" r="7" fill="#fff"/></symbol>
+ <symbol id="i_mods" viewBox="0 0 100 100"><path d="M20 72Q24 62 40 66T70 64Q82 66 84 76Q80 88 62 84T34 86Q18 88 20 72Z" fill="#2f4dff"/><circle cx="30" cy="90" r="4" fill="#2f4dff"/>
+  <rect x="14" y="12" width="62" height="28" rx="12" fill="#2f4dff" stroke="#fff" stroke-width="3"/><path d="M22 18h40" stroke="#8fa0ff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M76 26h10v22H52v14" stroke="#2a2f45" stroke-width="6" fill="none" stroke-linejoin="round"/><rect x="45" y="58" width="14" height="30" rx="6" fill="#2a2f45"/></symbol>
+ <symbol id="i_settings" viewBox="0 0 100 100"><circle cx="50" cy="46" r="31" fill="none" stroke="#fff" stroke-width="13" stroke-dasharray="10.2 6"/><circle cx="50" cy="46" r="27" fill="#fff"/><circle cx="50" cy="46" r="11" fill="#7b3be6"/>
+  <path d="M42 74Q44 84 40 92Q46 96 48 88Q50 80 56 74Z" fill="#c6f51c"/><circle cx="58" cy="90" r="3.5" fill="#c6f51c"/></symbol>
+ <symbol id="i_logs" viewBox="0 0 100 100"><rect x="20" y="16" width="60" height="74" rx="8" fill="#fff"/><rect x="20" y="16" width="60" height="14" rx="6" fill="#2a2f45"/>
+  <g fill="#c8d3dc"><circle cx="34" cy="16" r="5"/><circle cx="50" cy="16" r="5"/><circle cx="66" cy="16" r="5"/></g>
+  <path d="M30 44q6-5 12 0t12 0t12 0M30 58q6-5 12 0t12 0t8 0M30 72q6-5 12 0t8 0" stroke="#7b3be6" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <use href="#splat" transform="translate(60 62) scale(.3)" fill="#ff2e8a"/></symbol>
+ <symbol id="i_help" viewBox="0 0 100 100"><rect x="18" y="12" width="64" height="80" rx="10" fill="#fff"/><g stroke="#c8d3dc" stroke-width="5" stroke-linecap="round"><path d="M46 32h24M46 52h24M46 72h18"/></g>
+  <g stroke="#ff7a00" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M26 32l5 5 8-10"/><path d="M26 52l5 5 8-10"/></g><circle cx="32" cy="72" r="6" fill="none" stroke="#c8d3dc" stroke-width="4"/></symbol>
+ <symbol id="i_spk" viewBox="0 0 100 100"><rect x="8" y="8" width="84" height="84" rx="24" fill="#ff8a12"/><rect x="8" y="8" width="84" height="40" rx="24" fill="#fff" opacity=".18"/><path d="M24 40h12l18-14v48L36 60H24z" fill="#fff"/></symbol>
+ <symbol id="i_exit" viewBox="0 0 100 100"><rect x="8" y="8" width="84" height="84" rx="24" fill="#6f7d94"/><rect x="8" y="8" width="84" height="40" rx="24" fill="#fff" opacity=".16"/><path d="M38 34a22 22 0 1 0 24 0" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round"/><path d="M50 24v26" stroke="#fff" stroke-width="8" stroke-linecap="round"/></symbol>
+</defs></svg>
+<svg id="splash" viewBox="0 0 100 100"><use href="#splat" id="splashUse"/></svg>
+<div id="intro"><img src="assets/nsr_logo.png" alt="NSR"></div>
+<div class="stage" id="stage">
+ <div class="me" id="tAbout" data-go="about" data-col="#2d8cff"><img src="assets/nsr_logo.png" alt="NSR"></div>
+ <div class="dev R" id="tag">DEV BUILD</div>
+ <div class="ver" id="ver">dev build</div>
+
+ <div class="tile big" id="tMain" data-go="main" data-col="#ff8a12" style="left:214rem;top:140rem"><div class="face">
+  <svg class="art" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
+   <rect width="400" height="400" fill="#ff8a12"/><rect width="400" height="400" fill="url(#pDots)" opacity=".18"/>
+   <path d="M400 150Q352 170 340 214Q300 196 280 236Q236 224 236 272Q186 276 196 322Q150 340 170 400H400Z" fill="#3247ff"/>
+   <use href="#splat" transform="translate(150 196) scale(1.1)" fill="#3247ff"/><circle cx="136" cy="330" r="14" fill="#3247ff"/><circle cx="100" cy="300" r="7" fill="#3247ff"/>
+   <use href="#blob" transform="translate(-30 -40) scale(1.6)" fill="#ffffff" opacity=".12"/>
+  </svg>
+  <svg class="bigG" id="bigG" viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="#fff" stroke="#1d2470" stroke-width="7"/><path id="bigGp" d="M40 30l30 20-30 20z" fill="#1d2470"/></svg>
+  <div class="bigT" id="bigT">Install</div>
+  <div class="bigS" id="bigS">Start</div>
+  <div class="dl" id="bigDl" hidden><div class="tr"><div class="fl" id="bigFill"></div></div><div class="pc" id="bigPct">0%</div></div>
+ </div><div class="tl">Splatoon</div></div>
+ <div class="tile" id="tSource" data-go="source" data-col="#ff2e8a" style="left:716rem;top:140rem"><div class="face" style="background:linear-gradient(180deg,#ff5fae,#d6186a)"><svg class="sp" viewBox="0 0 100 100"><use href="#blob" transform="translate(52 -18) scale(.8)" fill="#fff"/></svg><svg class="ic" viewBox="0 0 100 100"><use href="#i_source"/></svg></div><div class="badge" id="bdSource" hidden></div><div class="tl">Game Source</div></div>
+ <div class="tile" id="tDest" data-go="dest" data-col="#0fc4a8" style="left:956rem;top:140rem"><div class="face" style="background:linear-gradient(180deg,#3fe6c8,#0a9f8c)"><svg class="sp" viewBox="0 0 100 100"><use href="#blob" transform="translate(-30 50) scale(.8)" fill="#fff"/></svg><svg class="ic" viewBox="0 0 100 100"><use href="#i_dest"/></svg></div><div class="badge" id="bdDest" hidden></div><div class="tl">Install Location</div></div>
+ <div class="tile" id="tMods" data-go="mods" data-col="#ff8a12" style="left:1196rem;top:140rem"><div class="face" style="background:linear-gradient(180deg,#ffb13d,#f06a00)"><svg class="sp" viewBox="0 0 100 100"><use href="#blob" transform="translate(40 40) scale(.9)" fill="#fff"/></svg><svg class="ic" viewBox="0 0 100 100"><use href="#i_mods"/></svg></div><div class="tl">Mods</div></div>
+ <div class="tile" id="tSettings" data-go="settings" data-col="#7b3be6" style="left:716rem;top:402rem"><div class="face" style="background:linear-gradient(180deg,#a679ff,#6a2bd8)"><svg class="sp" viewBox="0 0 100 100"><use href="#blob" transform="translate(-20 -30) scale(.8)" fill="#fff"/></svg><svg class="ic" viewBox="0 0 100 100"><use href="#i_settings"/></svg></div><div class="tl">Settings</div></div>
+ <div class="tile" id="tLogs" data-go="logs" data-col="#8fd61a" style="left:956rem;top:402rem"><div class="face" style="background:linear-gradient(180deg,#c8f04f,#69b80f)"><svg class="sp" viewBox="0 0 100 100"><use href="#blob" transform="translate(50 46) scale(.8)" fill="#fff"/></svg><svg class="ic" viewBox="0 0 100 100"><use href="#i_logs"/></svg></div><div class="tl">Logs</div></div>
+ <div class="tile" id="tHelp" data-go="help" data-col="#2d8cff" style="left:1196rem;top:402rem"><div class="face" style="background:linear-gradient(180deg,#5cb6ff,#1f5fd6)"><svg class="sp" viewBox="0 0 100 100"><use href="#blob" transform="translate(-36 30) scale(.9)" fill="#fff"/></svg><svg class="ic" viewBox="0 0 100 100"><use href="#i_help"/></svg></div><div class="tl">What You Need</div></div>
+
+ <div class="bub" id="bub" hidden><b id="bubT"></b><small id="bubS"></small></div>
+
+ <div class="dock">
+  <div class="dk nav" id="dMusic"><svg viewBox="0 0 100 100"><use href="#i_spk"/><g id="dWaves" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"><path d="M62 40c5 5 5 15 0 20"/><path d="M71 32c10 10 10 26 0 36"/></g><path id="dX" d="M62 40l16 20m0-20L62 60" stroke="#fff" stroke-width="7" stroke-linecap="round" hidden/></svg><em>Music</em></div>
+  <div class="volp"><svg viewBox="0 0 100 100"><path d="M18 38h14l20-16v56L32 62H18z" fill="#9fc8f5"/></svg><input type="range" class="nav" id="vol" min="0" max="100" value="60" title="Volume"></div>
+  <div class="dk nav" id="dExit" data-act="exit"><svg viewBox="0 0 100 100"><use href="#i_exit"/></svg><em>Exit</em></div>
+ </div>
+
+ <!-- screens -->
+ <div class="scr" id="sc_about" hidden>
+  <div class="hd"><div class="band" style="background:#2d8cff"></div><div class="hi"><img src="assets/nsr_logo.png" style="width:100%;height:100%;border-radius:17rem" alt=""></div><h1>Welcome to NSR</h1></div>
+  <div class="bd"><div class="card about"><img src="assets/nsr_logo.png" alt="NSR"><div>
+   <p>NSR runs your own copy of Splatoon (Wii U, v2.7.2) as a native PC program. Nothing to compile, nothing downloaded. Your dump is only read, never changed.</p>
+   <p>Pick your game, pick a folder, press Install. Then Play.</p>
+   <p class="dim"><b>For developers only:</b> this dev build (<span id="verText">dev build</span>) is for testing the port, not for playing through. AMD Radeon graphics only (NVIDIA and Intel untested). Expect crashes: if it breaks, open Logs and send the newest file.</p>
+   <p class="dim">Game code recompiled with <b>DolRecomp</b> by ExpansionPak (lead developer Hyperway), GPL-3.0. Thank you! AI-assisted development.</p></div></div></div>
+  <div class="ft"><div class="b nav back"><span class="k">B</span>Back</div><div class="gap"></div><div class="b go nav" data-go="source">Get started</div></div>
+ </div>
+ <div class="scr" id="sc_source" hidden>
+  <div class="hd"><div class="band" style="background:#ff2e8a"></div><div class="hi"><div class="face" style="background:linear-gradient(180deg,#ff5fae,#d6186a)"><svg class="ic" viewBox="0 0 100 100"><use href="#i_source"/></svg></div></div><h1>Game Source</h1></div>
+  <div class="bd"><div class="card">
+   <p>Your own Dumpling dump: the base game and the v272 update, each a folder with code, content and meta. A .wux or .wud disc image with your own keys.txt works too.</p>
+   <div class="field"><div class="box" id="dumpPath"></div><div class="b go nav" id="bDump" data-act="browse_dump">Browse...</div></div>
+   <div class="msg" id="dumpMsg"></div></div>
+   <p class="dim" style="margin-left:8rem">NSR ships no game files and no keys, and never downloads any.</p></div>
+  <div class="ft"><div class="b nav back"><span class="k">B</span>Back</div><div class="gap"></div><div class="b go nav" id="nSource" data-go="dest">Next: install location</div></div>
+ </div>
+ <div class="scr" id="sc_dest" hidden>
+  <div class="hd"><div class="band" style="background:#0fc4a8"></div><div class="hi"><div class="face" style="background:linear-gradient(180deg,#3fe6c8,#0a9f8c)"><svg class="ic" viewBox="0 0 100 100"><use href="#i_dest"/></svg></div></div><h1>Install Location</h1></div>
+  <div class="bd"><div class="card">
+   <p>An empty folder for NSR, its shader cache, your saves and logs.</p>
+   <div class="field"><div class="box" id="instPath"></div><div class="b go nav" id="bInst" data-act="browse_inst">Browse...</div></div>
+   <div class="meta"><span id="instNeed"></span><span id="instFree"></span></div></div></div>
+  <div class="ft"><div class="b nav back"><span class="k">B</span>Back</div><div class="gap"></div><div class="b go nav" id="nDest" data-go="install">Next: install</div></div>
+ </div>
+ <div class="scr" id="sc_install" hidden>
+  <div class="hd"><div class="band" style="background:#18b2e4"></div><div class="hi"><img src="assets/nsr_logo.png" style="width:100%;height:100%;border-radius:17rem" alt=""></div><h1 id="insH">Install</h1></div>
+  <div class="bd">
+   <div class="card dlrow"><img src="assets/nsr_logo.png" alt=""><div class="tx">
+    <div class="nm">Splatoon <span style="color:#7fa6d8">· NSR</span></div>
+    <div class="st" id="insSt"></div>
+    <div class="track"><div class="fl" id="insFill"></div></div>
+    <div class="nums"><span id="insPct">0%</span><span id="insLeft"></span></div></div></div>
+   <div class="steps3" id="steps3"><div><i>1</i>Reading the game</div><div><i>2</i>Preparing the game program</div><div><i>3</i>Finishing</div></div>
+   <p class="dim" style="margin:18rem 8rem 0">From: <span id="insFrom"></span><br>To: <span id="insTo"></span></p>
+  </div>
+  <div class="ft"><div class="b nav back" id="insBack"><span class="k">B</span>Back</div><div class="gap"></div><div class="b go nav" id="insMain" data-go="main">Install</div></div>
+ </div>
+ <div class="scr" id="sc_mods" hidden>
+  <div class="hd"><div class="band" style="background:#ff8a12"></div><div class="hi"><div class="face" style="background:linear-gradient(180deg,#ffb13d,#f06a00)"><svg class="ic" viewBox="0 0 100 100"><use href="#i_mods"/></svg></div></div><h1>Mods</h1></div>
+  <div class="bd">
+   <div class="field"><div class="box" id="modsDir"></div><div class="b go nav" data-act="mods_add">Add mod...</div><div class="b nav" data-act="mods_open">Open folder</div></div>
+   <div class="msg" id="modsMsg" style="margin-left:8rem"></div>
+   <div class="rows" id="modList"></div></div>
+  <div class="ft"><div class="b nav back"><span class="k">B</span>Back</div><div class="gap"></div><span style="font-size:19rem;color:#7fa6d8">Cemu graphic packs and file-replacement mods</span></div>
+ </div>
+ <div class="scr" id="sc_settings" hidden>
+  <div class="hd"><div class="band" style="background:#7b3be6"></div><div class="hi"><div class="face" style="background:linear-gradient(180deg,#a679ff,#6a2bd8)"><svg class="ic" viewBox="0 0 100 100"><use href="#i_settings"/></svg></div></div><h1>Settings</h1></div>
+  <div class="bd"><div class="rows" id="optRows"></div></div>
+  <div class="ft"><div class="b nav back"><span class="k">B</span>Back</div></div>
+ </div>
+ <div class="scr" id="sc_logs" hidden>
+  <div class="hd"><div class="band" style="background:#8fd61a"></div><div class="hi"><div class="face" style="background:linear-gradient(180deg,#c8f04f,#69b80f)"><svg class="ic" viewBox="0 0 100 100"><use href="#i_logs"/></svg></div></div><h1>Logs</h1></div>
+  <div class="bd"><div class="card">
+   <p>If something breaks, the log says why. Send the newest one with your report.</p>
+   <p class="dim">logs\session_1.txt is the last time you played (session_2 and _3 the times before), logs\install.txt the last install.</p>
+   <div style="margin-top:14rem"><div class="b go nav" data-act="logs">Open the logs folder</div></div></div></div>
+  <div class="ft"><div class="b nav back"><span class="k">B</span>Back</div></div>
+ </div>
+ <div class="scr" id="sc_help" hidden>
+  <div class="hd"><div class="band" style="background:#2d8cff"></div><div class="hi"><div class="face" style="background:linear-gradient(180deg,#5cb6ff,#1f5fd6)"><svg class="ic" viewBox="0 0 100 100"><use href="#i_help"/></svg></div></div><h1>What You Need</h1></div>
+  <div class="bd"><div class="rows" id="helpRows"></div></div>
+  <div class="ft"><div class="b nav back"><span class="k">B</span>Back</div></div>
+ </div>
+</div>
+<audio id="aud" loop preload="auto" src="assets/music/menu.mp3"></audio>
+<script>
+const $=id=>document.getElementById(id);
+const W=window.chrome&&window.chrome.webview;
+function send(m){if(W)W.postMessage(m)}
+let S={},screen=null,sel='tMain',hover=null,first=true,reduce=false,measure=false,kbd=false,cur=null,introDone=false;
+const built=()=>!!(S.main&&S.main.t==='Play'&&!S.busy);
+const fs=()=>parseFloat(getComputedStyle(document.documentElement).fontSize);
+const vol=$('vol'),aud=$('aud');
+
+// ==================== the water: a small procedural shader ====================
+const SEA=(function(){
+ const cv=$('sea');let gl=null;try{gl=cv.getContext('webgl',{antialias:false,alpha:false,depth:false,stencil:false,preserveDrawingBuffer:false,powerPreference:'low-power'})}catch(e){}
+ if(!gl)return{drop(){},still(){}};
+ const VS='attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}';
+ const FS=`precision mediump float;
+uniform vec2 R;uniform float T;uniform vec3 D;
+float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
+float H(vec2 p){
+ float h=sin(dot(p,vec2(.9,.4))*1.3+T*.9)*.34+sin(dot(p,vec2(-.5,.85))*1.9+T*1.15)*.22+sin(dot(p,vec2(.2,-1.))*3.1+T*1.55)*.1;
+ h+=(vn(p*1.6+vec2(T*.15,T*.08))-.5)*.55+(vn(p*4.2-vec2(T*.22,-T*.1))-.5)*.16;return h;}
+float caus(vec2 p){float c=0.;vec2 q=p;
+ for(int i=0;i<2;i++){float fi=float(i);q+=vec2(sin(q.y*1.7+T*.55+fi),cos(q.x*1.5-T*.45+fi*1.3))*.42;c+=1./(1.+16.*abs(sin(q.x+q.y*.7)*sin(q.y-q.x*.6)));}
+ return c/2.;}
+void main(){
+ vec2 uv=gl_FragCoord.xy/R;float asp=R.x/R.y;
+ float z=1./(.17+(1.-uv.y)*.95);
+ vec2 p=vec2((uv.x-.5)*asp*z,z*1.7)*2.;
+ float e=.05,h=H(p);
+ vec2 g=vec2(H(p+vec2(e,0.))-h,H(p+vec2(0.,e))-h)/e;
+ if(D.z>=0.){vec2 dp=(uv-D.xy)*vec2(asp,1.);float r=length(dp),w=r-D.z*.42;float env=exp(-D.z*.9)*exp(-abs(w)*10.);
+  float rip=sin(w*70.)*env;g+=dp/(r+.001)*rip*7.;}
+ float far=smoothstep(.25,1.,uv.y);
+ g*=mix(1.,.4,far);   // (calmer far away: small waves there would only sparkle)
+ vec3 n=normalize(vec3(-g.x*.55,1.,-g.y*.55));
+ float lit=.5+.5*dot(n,normalize(vec3(.15,.9,.45)));
+ vec3 col=mix(vec3(.006,.028,.10),vec3(.022,.11,.30),lit*.85);
+ col=mix(col,vec3(.04,.17,.40),far*.5*(.55+.45*lit));
+ float sp=pow(max(dot(n,normalize(vec3(0.,1.,.42))),0.),90.);
+ col+=vec3(.5,.8,1.)*sp*(.16+far*.22);   // (soft glints: nothing that twinkles)
+ float c=caus(p*.85+g*.5);
+ col+=vec3(.04,.42,.62)*pow(c,3.)*.32*(1.-far*.65);
+ float sh=pow(max(0.,sin(uv.x*6.5+sin(T*.13)*2.+uv.y*1.6)*.5+.5),7.)*uv.y;
+ col+=vec3(.05,.15,.32)*sh*.4;
+ col*=.5+.5*smoothstep(1.25,.15,length((uv-vec2(.5,.58))*vec2(1.,1.35)));
+ gl_FragColor=vec4(col,1.);}`;
+ function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)){console.error(gl.getShaderInfoLog(o));return null}return o}
+ const v=sh(gl.VERTEX_SHADER,VS),f=sh(gl.FRAGMENT_SHADER,FS);if(!v||!f)return{drop(){},still(){}};
+ const pr=gl.createProgram();gl.attachShader(pr,v);gl.attachShader(pr,f);gl.linkProgram(pr);gl.useProgram(pr);
+ const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+ const loc=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+ const uR=gl.getUniformLocation(pr,'R'),uT=gl.getUniformLocation(pr,'T'),uD=gl.getUniformLocation(pr,'D');
+ const SCALE=.3;   // the water is soft: 3/10 of the window's pixels, smoothed up by the browser
+ function size(){const d=devicePixelRatio||1,w=Math.max(64,Math.round(innerWidth*d*SCALE)),h=Math.max(36,Math.round(innerHeight*d*SCALE));if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;gl.viewport(0,0,w,h)}}
+ addEventListener('resize',size);size();
+ const t0=performance.now();let last=0,dropAt=-1,dx=.5,dy=.5,frozen=false,drawnOnce=false;
+ function frame(ts){requestAnimationFrame(frame);if(document.hidden)return;if(ts-last<15)return;last=ts;   // at most ~60 a second (30 looked choppy)
+  if(frozen&&drawnOnce&&dropAt<0)return;
+  const t=(ts-t0)/1000,dt=dropAt<0?-1:(ts-dropAt)/1000;if(dt>5)dropAt=-1;
+  gl.uniform2f(uR,cv.width,cv.height);gl.uniform1f(uT,frozen?12.:t);gl.uniform3f(uD,dx,dy,dropAt<0?-1:dt);gl.drawArrays(gl.TRIANGLES,0,3);drawnOnce=true}
+ requestAnimationFrame(frame);
+ return{drop(x,y){dx=x;dy=y;dropAt=performance.now()},still(on){frozen=on}};
+})();
+// a drop where you click on the water (not on a tile or a button)
+document.addEventListener('pointerdown',e=>{if(e.target===$('sea')||e.target===document.body||e.target===$('stage'))SEA.drop(e.clientX/innerWidth,1-e.clientY/innerHeight)});
+
+// ==================== sounds: made here, short and quiet (no files) ====================
+let AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC}
+function tone(f0,f1,dur,type,gain,delay){const a=ac();if(!a)return;const v=(+vol.value)/100;if(v<=0)return;
+ const t=a.currentTime+(delay||0),o=a.createOscillator(),g=a.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+ g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain*v,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(a.destination);o.start(t);o.stop(t+dur+.02)}
+const SFX={
+ move(){tone(1250,1180,.04,'triangle',.05)},
+ pick(){tone(520,980,.08,'sine',.10);tone(980,1300,.06,'sine',.05,.05)},
+ open(){tone(200,760,.16,'sine',.12);tone(900,1500,.07,'triangle',.04,.09)},
+ back(){tone(760,300,.12,'sine',.09)},
+ on(){tone(700,1000,.06,'sine',.08);tone(1000,1400,.06,'sine',.07,.06)},
+ off(){tone(1000,700,.06,'sine',.08);tone(700,500,.06,'sine',.06,.06)},
+ no(){tone(220,180,.12,'square',.03)},
+ plop(){tone(160,620,.18,'sine',.14);tone(900,300,.12,'sine',.04,.06)}
+};
+
+// ==================== the bubble over a tile ====================
+function info(id){
+ const d=S.dump||{},n=S.inst||{},p=S.prog||{};
+ switch(id){
+  case 'tAbout':return['NSR','About this dev build'];
+  case 'tSource':return['Game Source',d.path?(d.msg||d.path):'Pick your Splatoon dump',d.path&&!d.ok];
+  case 'tDest':return['Install Location',n.path?(n.path+(n.free?' \u00b7 '+n.free:'')):'Pick an empty folder',n.path&&!n.ok];
+  case 'tMods':return['Mods','Graphic packs and file-replacement mods'];
+  case 'tSettings':return['Settings','Fullscreen, performance mode, benchmark, repair'];
+  case 'tLogs':return['Logs','For your bug reports'];
+  case 'tHelp':return['What You Need','Your dump, an AMD graphics card, Windows, disk space'];
+  case 'tMain':return[S.busy?'Installing':built()?'Play Splatoon':'Install',p.lbl||'',!!p.warn];
+ }return['',''];
+}
+function bubble(){
+ const id=hover||(kbd?sel:null),t=id&&$(id),b=$('bub');
+ if(!t||screen||!introDone){b.hidden=true;return}
+ const [a,s,w]=info(id);b.hidden=false;$('bubT').textContent=a;const sm=$('bubS');sm.textContent=s||'';sm.hidden=!s;sm.classList.toggle('warn',!!w);
+ const f=fs(),L=t.offsetLeft+t.offsetWidth/2,T=t.offsetTop,below=id==='tAbout';
+ b.style.left=Math.max(b.offsetWidth/f/2+10,L/f)+'rem';
+ b.style.top=(below?T/f+t.offsetHeight/f+22:T/f-b.offsetHeight/f-20)+'rem';b.classList.toggle('below',below);
+}
+
+// ==================== screens ====================
+const TILES=['tAbout','tMain','tSource','tDest','tMods','tSettings','tLogs','tHelp'];
+function go(what,from){
+ if(what==='main'){if(S.main&&S.main.en){SFX.pick();send('main');if(!built()&&!S.busy)openScreen('install',from)}else SFX.no();return}
+ if(S.busy&&(what==='source'||what==='dest')){SFX.no();return}
+ openScreen(what,from);
+}
+function openScreen(n,from){
+ if(screen===n)return;const el=$('sc_'+n);if(!el)return;
+ splash(from);SFX.open();
+ if(screen){$('sc_'+screen).hidden=true;if(screen==='mods')send('tab:home')}
+ screen=n;el.hidden=false;el.classList.remove('in');void el.offsetWidth;el.classList.add('in');setTimeout(()=>el.classList.remove('in'),320);
+ if(n==='mods')send('tab:mods');
+ document.body.classList.add('inscr');hover=null;setCur(null);render();
+}
+function closeScreen(){if(!screen)return;SFX.back();$('sc_'+screen).hidden=true;if(screen==='mods')send('tab:home');screen=null;document.body.classList.remove('inscr');setCur(null);render()}
+function splash(from){
+ if(reduce)return;const s=$('splash'),t=from&&from.getBoundingClientRect?from:null;
+ $('splashUse').setAttribute('fill',(t&&t.dataset&&t.dataset.col)||'#18c3ec');
+ const r=t?t.getBoundingClientRect():{left:innerWidth/2,top:innerHeight/2,width:0,height:0};
+ s.style.left=(r.left+r.width/2)+'px';s.style.top=(r.top+r.height/2)+'px';s.style.setProperty('--s',Math.max(innerWidth,innerHeight)/60);
+ s.classList.remove('go');void s.offsetWidth;s.classList.add('go');
+ clearTimeout(splash.t);splash.t=setTimeout(()=>s.classList.remove('go'),450);
+}
+
+// ==================== clicks ====================
+document.addEventListener('click',e=>{
+ ac();
+ if(e.target.closest('.back')){closeScreen();return}
+ const a=e.target.closest('[data-act]');if(a){if(a.classList.contains('dis')){SFX.no();return}SFX.pick();send(a.dataset.act);return}
+ const g=e.target.closest('[data-go]');if(g){if(g.classList.contains('dis')){SFX.no();return}if(TILES.includes(g.id))sel=g.id;go(g.dataset.go,g);render();return}
+});
+TILES.forEach(id=>{const t=$(id);t.onmouseenter=()=>{if(hover!==id&&!screen){hover=id;SFX.move();bubble()}};t.onmouseleave=()=>{if(hover===id){hover=null;bubble()}}});
+document.addEventListener('mouseleave',()=>{hover=null;bubble()});
+document.addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('resize',bubble);
+
+// ==================== keyboard and game pads ====================
+function navs(){
+ if(screen)return[...$('sc_'+screen).querySelectorAll('.nav')].filter(e=>!e.classList.contains('dis')&&e.offsetParent);
+ return TILES.map($).concat([...document.querySelectorAll('.dock .nav')]);
+}
+function setCur(e){document.querySelectorAll('.kf').forEach(x=>x.classList.remove('kf'));cur=e;
+ if(!e){bubble();return}if(TILES.includes(e.id)){sel=e.id;hover=null;render()}else{if(kbd)e.classList.add('kf');bubble()}
+ if(e.closest&&e.closest('.rows'))e.scrollIntoView({block:'nearest'})}
+function move(dx,dy){
+ kbd=true;const all=navs();if(!all.length)return;
+ let c=cur&&all.includes(cur)?cur:(screen?null:$(sel));
+ if(!c){setCur(all[0]);SFX.move();return}
+ const r=c.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let best=null,bd=1e9;
+ all.forEach(e=>{if(e===c)return;const q=e.getBoundingClientRect(),x=q.left+q.width/2-cx,y=q.top+q.height/2-cy;
+  const along=dx?x*dx:y*dy,side=dx?Math.abs(y):Math.abs(x);if(along<=4)return;const d=along+side*2.2;if(d<bd){bd=d;best=e}});
+ if(best){setCur(best);SFX.move()}
+}
+function pick(){kbd=true;const c=cur||(!screen&&$(sel));if(!c||c.id==='vol')return;c.click()}
+function back(){if(screen)closeScreen()}
+document.addEventListener('keydown',e=>{
+ ac();
+ if(e.key==='ArrowRight')move(1,0);else if(e.key==='ArrowLeft')move(-1,0);else if(e.key==='ArrowDown')move(0,1);else if(e.key==='ArrowUp')move(0,-1);
+ else if(e.key==='Enter'||e.key===' ')pick();else if(e.key==='Escape'||e.key==='Backspace')back();else return;
+ e.preventDefault();
+});
+document.addEventListener('pointermove',()=>{if(kbd){kbd=false;document.querySelectorAll('.kf').forEach(x=>x.classList.remove('kf'));bubble()}});
+const padHeld={};let padNext=0;
+function pads(ts){requestAnimationFrame(pads);if(document.hidden)return;const gp=(navigator.getGamepads?navigator.getGamepads():[]);
+ for(const p of gp){if(!p)continue;const b=i=>p.buttons[i]&&p.buttons[i].pressed;
+  const dir=b(15)||p.axes[0]>.55?'r':b(14)||p.axes[0]<-.55?'l':b(13)||p.axes[1]>.55?'d':b(12)||p.axes[1]<-.55?'u':null;
+  if(dir){if(padHeld.dir!==dir||ts>padNext){padNext=ts+(padHeld.dir===dir?130:380);padHeld.dir=dir;move(dir==='r'?1:dir==='l'?-1:0,dir==='d'?1:dir==='u'?-1:0)}}else padHeld.dir=null;
+  if(b(0)&&!padHeld.a){padHeld.a=1;pick()}else if(!b(0))padHeld.a=0;
+  if(b(1)&&!padHeld.b){padHeld.b=1;back()}else if(!b(1))padHeld.b=0;
+  break}}
+requestAnimationFrame(pads);
+
+// ==================== NSR.exe -> the page: one state object, as before ====================
+function txt(id,v){const e=$(id);if(e.textContent!==v)e.textContent=v}
+function boxv(id,v,empty){const e=$(id);txt(id,v||empty);e.classList.toggle('empty',!v)}
+function badge(id,show,ok){const b=$(id);b.hidden=!show;if(show){b.className='badge '+(ok?'ok':'warn');b.textContent=ok?'\u2713':'!'}}
+function apply(s){
+ Object.assign(S,s);
+ if(s.alpha!==undefined)$('tag').hidden=!s.alpha;
+ if(s.ver){const v=s.ver.replace(/[\s-]*alpha/i,' dev build');txt('ver',v);txt('verText',v)}
+ if(s.dump){boxv('dumpPath',s.dump.path,'No dump picked yet');boxv('insFrom',s.dump.path,'-');
+  const m=$('dumpMsg');m.textContent=s.dump.msg||'';m.classList.toggle('warn',!s.dump.ok);
+  (s.dump.links||[]).forEach(l=>{const a=document.createElement('span');a.className='lnk';a.dataset.act=l.a;a.textContent=l.t;m.appendChild(a)});
+  badge('bdSource',!!s.dump.path,s.dump.ok);$('bDump').classList.toggle('dis',!!s.busy);$('nSource').classList.toggle('dis',!s.dump.ok)}
+ if(s.inst){boxv('instPath',s.inst.path,'No folder picked yet');boxv('insTo',s.inst.path,'-');txt('instNeed',s.inst.need||'');
+  const f=$('instFree');f.textContent=s.inst.free||'';f.classList.toggle('warn',!s.inst.ok);badge('bdDest',!!s.inst.path,s.inst.ok);
+  $('bInst').classList.toggle('dis',!!s.busy);$('nDest').classList.toggle('dis',!s.inst.ok)}
+ if(s.prog){const pc=Math.max(0,Math.min(100,s.prog.pct||0));
+  $('bigFill').style.width=pc+'%';txt('bigPct',Math.round(pc)+'%');$('insFill').style.width=pc+'%';txt('insPct',Math.round(pc)+'%');
+  txt('insSt',s.prog.lbl||'');$('insSt').classList.toggle('warn',!!s.prog.warn);txt('insLeft',s.prog.left||'')}
+ if(s.vol!==undefined)setVol(s.vol);
+ if(s.reduce!==undefined){reduce=!!s.reduce;document.body.classList.toggle('still',reduce);SEA.still(reduce)}
+ if(s.music!==undefined){if(s.music)startMusic();else musicStarted=true}
+ if(s.stopMusic)aud.pause();
+ if(s.playMusic){musicStarted=true;aud.play().catch(()=>{})}
+ if(s.mods)applyMods(s.mods);
+ if(s.measure!==undefined)measure=s.measure;
+ if(first){first=false;sel=nextTile();introRun()}
+ if(S.busy&&screen!=='install'&&screen!=='mods'&&introDone)openScreen('install');
+ renderOpts();render();
+}
+function nextTile(){if(built()||S.busy)return'tMain';if(!(S.dump&&S.dump.ok))return'tSource';if(!(S.inst&&S.inst.ok))return'tDest';return'tMain'}
+function render(){
+ const busy=!!S.busy,b=built(),men=!!(S.main&&S.main.en);
+ if(busy&&!screen)sel='tMain';
+ TILES.forEach(id=>$(id).classList.toggle('sel',id===sel));
+ $('tSource').classList.toggle('dis',busy);$('tDest').classList.toggle('dis',busy);$('tMain').classList.toggle('dis',!men);
+ txt('bigT',busy?'Installing':b?'Play':'Install');$('bigT').style.fontSize=busy?'70rem':'';
+ txt('bigS',b?'Start':men?'Start':(!(S.dump&&S.dump.ok)?'Pick your game first':'Pick a folder first'));
+ $('bigS').hidden=busy;$('bigG').style.display=busy?'none':'';$('bigDl').hidden=!busy;
+ const gp=$('bigGp');gp.setAttribute('d',b?'M40 30l30 20-30 20z':'M50 26v38M36 50l14 14 14-14');
+ gp.setAttribute('fill',b?'#1d2470':'none');gp.setAttribute('stroke',b?'none':'#1d2470');gp.setAttribute('stroke-width','9');gp.setAttribute('stroke-linecap','round');gp.setAttribute('stroke-linejoin','round');
+ $('dExit').classList.toggle('dis',busy);
+ const mt=S.main?S.main.t:'Install';
+ txt('insH',busy?'Installing':b?'Installed':'Install');
+ txt('insMain',busy?(mt==='Cancel'?'Cancel':mt):b?'Play':'Install');
+ $('insMain').classList.toggle('dis',!men);$('insMain').classList.toggle('red',busy);$('insMain').classList.toggle('go',!busy);
+ $('insBack').classList.toggle('dis',busy);
+ const m=/Step (\d) of 3/.exec((S.prog&&S.prog.lbl)||''),step=b?4:busy&&m?+m[1]:0;
+ [...$('steps3').children].forEach((d,i)=>{d.className=i+1<step?'ok':i+1===step?'now':'';d.querySelector('i').textContent=i+1<step?'\u2713':i+1});
+ bubble();
+}
+function applyMods(m){
+ boxv('modsDir',m.dir,'Install the game first');const mm=$('modsMsg');mm.textContent=m.msg||'';mm.classList.toggle('warn',!!m.warn);
+ const L=$('modList');L.textContent='';
+ if(!m.list||!m.list.length){const e=document.createElement('div');e.className='card';e.innerHTML='<p class="dim" style="margin:0"></p>';e.firstChild.textContent=m.empty||'No mods yet. Add one with Add mod.';L.appendChild(e);return}
+ m.list.forEach((x,i)=>{const r=document.createElement('div');r.className='row nav'+(x.on?' on':'');
+  r.innerHTML='<div class="dot" style="background:linear-gradient(180deg,#ffb13d,#f06a00)"><svg viewBox="0 0 100 100"><use href="#i_mods"/></svg></div><div class="tx"><div class="nm"></div><div class="ds"></div><div class="ss"></div></div><div class="sw"></div>';
+  r.querySelector('.nm').textContent=x.n;r.querySelector('.ds').textContent=x.d||'';const ss=r.querySelector('.ss');ss.textContent=x.s||'';ss.classList.toggle('warn',!x.ok);
+  if(!x.ok&&!x.on)r.classList.add('dis');else{r.dataset.act='mod:'+i+':'+(x.on?0:1);r.addEventListener('click',()=>x.on?SFX.off():SFX.on(),true)}
+  L.appendChild(r)})
+}
+const OPTS=[['fullscreen','Fullscreen','The game fills the screen'],['fps','FPS counter','Frames per second in the corner'],
+ ['perf','Performance mode','For small PCs: 1x picture, no anti-aliasing, the plaza at 30'],['music','Launcher music','This song, here'],['reduce','Reduce motion','Still water, no bouncing, no splashes']];
+const ACTS=[['bench','Run the benchmark','Every map, about 30 minutes; results in the install folder','canPlay','#18b2e4'],['open_inst','Open the install folder','','hasDir','#0fc4a8'],
+ ['repair','Reinstall (repair)','Prepares the game again from your dump','canPlay','#ff8a12'],['remove','Remove the installation','Asks first. Your dump is not touched; saves are deleted','isInst','#e23b3b']];
+let optsKey='';
+function renderOpts(){
+ const o=S.opts,k=JSON.stringify(o||null);if(k===optsKey)return;optsKey=k;const R=$('optRows');R.textContent='';
+ const add=h=>{const d=document.createElement('div');d.innerHTML=h;const e=d.firstChild;R.appendChild(e);return e};
+ if(!o){add('<div class="card"><p>This NSR.exe has its settings in a menu.</p><div class="b go nav" data-act="settings">Open settings</div></div>');return}
+ add('<div class="sec">Switches</div>');
+ OPTS.forEach(([id,n,d])=>{const r=add('<div class="row nav"><div class="dot" style="background:linear-gradient(180deg,#a679ff,#6a2bd8)"><svg viewBox="0 0 100 100"><use href="#i_settings"/></svg></div><div class="tx"><div class="nm"></div><div class="ds"></div></div><div class="sw"></div></div>');
+  r.querySelector('.nm').textContent=n;r.querySelector('.ds').textContent=d;r.classList.toggle('on',!!o[id]);r.dataset.act='opt:'+id;
+  r.addEventListener('click',()=>o[id]?SFX.off():SFX.on(),true)});
+ add('<div class="sec">The installation</div>');
+ ACTS.forEach(([id,n,d,need,col])=>{const r=add('<div class="row nav"><div class="dot"><svg viewBox="0 0 100 100"><use href="#splat" fill="#fff"/></svg></div><div class="tx"><div class="nm"></div><div class="ds"></div></div></div>');
+  r.querySelector('.dot').style.background=col;r.querySelector('.nm').textContent=n;r.querySelector('.ds').textContent=d;r.dataset.act='opt:'+id;if(!o[need])r.classList.add('dis')});
+}
+(function(){const R=$('helpRows'),L=[['Your own Splatoon dump','The base game and the v272 update (or a .wux/.wud disc image with your keys.txt)','#ff2e8a'],
+ ['Windows 10 or 11, 64-bit','With the WebView2 runtime (already in Windows 11)','#2d8cff'],['An AMD Radeon graphics card','This is an AMD build, tested on AMD only. NVIDIA and Intel are untested: they may not work','#7b3be6'],
+ ['About 2 GB free','6 GB with a disc image','#0fc4a8'],['A 4-core CPU and 8 GB RAM for a steady 60','Small PCs: Settings > Performance mode','#ff8a12'],
+ ['The first visit to each area stutters','It builds its graphics once, then never again','#8fd61a']];
+ L.forEach(([n,d,c])=>{const r=document.createElement('div');r.className='row nav';r.style.cursor='default';
+  r.innerHTML='<div class="dot"><svg viewBox="0 0 100 100"><path d="M26 52l16 16 32-36" stroke="#fff" stroke-width="13" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="tx"><div class="nm"></div><div class="ds"></div></div>';
+  r.querySelector('.dot').style.background=c;r.querySelector('.nm').textContent=n;r.querySelector('.ds').textContent=d;R.appendChild(r)})})();
+if(W)W.addEventListener('message',e=>apply(e.data));
+
+// ==================== the start: the logo drops into the water, the menu rises out of it ====================
+function introRun(){
+ const I=$('intro'),els=[...document.querySelectorAll('.tile,.me,.dock,.dev,.ver,.foot')];
+ const finish=()=>{introDone=true;I.remove();if(!(S.dump&&S.dump.path)&&!built())openScreen('about');else if(S.busy)openScreen('install');render()};
+ if(reduce){document.body.classList.remove('intro');finish();return}
+ setTimeout(()=>{I.classList.add('dive');SFX.plop()},650);
+ setTimeout(()=>{SEA.drop(.5,.5);I.classList.add('out');
+  els.forEach((e,i)=>{e.classList.add('rise');e.style.transitionDelay=(.08+i*.045)+'s'});document.body.classList.remove('intro')},950);
+ setTimeout(()=>{els.forEach(e=>{e.classList.remove('rise');e.style.transitionDelay=''});finish()},1900);
+}
+
+// ==================== music: the dock's speaker plays / pauses, the slider is the volume (saved by NSR.exe) ====================
+let musicStarted=false;
+function setVol(v){vol.value=v;aud.volume=v/100;vol.style.setProperty('--v',v+'%')}
+try{setVol(+(localStorage.getItem('nsr_vol')??60))}catch(e){setVol(60)}
+function icon(){const on=!aud.paused;$('dWaves').style.display=on?'':'none';$('dX').hidden=on}
+aud.onplay=aud.onpause=icon;icon();
+$('dMusic').onclick=()=>{if(aud.paused){aud.play().catch(()=>{});send('music:1');SFX.on()}else{aud.pause();send('music:0');SFX.off()}};
+vol.oninput=()=>{aud.volume=vol.value/100;vol.style.setProperty('--v',vol.value+'%');try{localStorage.setItem('nsr_vol',vol.value)}catch(e){}};
+vol.onchange=()=>{send('vol:'+vol.value);SFX.move()};
+function startMusic(){if(musicStarted)return;musicStarted=true;
+ aud.play().catch(()=>{const go=()=>{aud.play().catch(()=>{});removeEventListener('pointerdown',go)};addEventListener('pointerdown',go)})}
+
+// ==================== smoothness check while installing (NSR.exe logs it) ====================
+let fc=0,gap=0,lt=0,ls=performance.now();
+function fps(ts){requestAnimationFrame(fps);if(lt)gap=Math.max(gap,ts-lt);lt=ts;fc++;if(ts-ls>=500){if(measure&&!document.hidden)send('fps:'+Math.round(fc*1000/(ts-ls))+':'+Math.round(gap));fc=0;gap=0;ls=ts}}
+requestAnimationFrame(fps);
+
+send('ready');
+// ==================== opened in a normal browser: a made-up state to look at the design ====================
+if(!W)apply({alpha:true,ver:'v0.22 dev build',busy:false,
+ dump:{path:'D:\\Dumps\\Splatoon',ok:true,msg:'Base game and v272 update found.',links:[]},
+ inst:{path:'D:\\Games\\NSR',need:'Needs 2.0 GB',free:'412 GB free on D:',ok:true},
+ prog:{lbl:'Ready to install',pct:0,left:'takes a few seconds'},main:{t:'Install',en:true},
+ opts:{fullscreen:true,fps:false,perf:false,music:true,reduce:false,canPlay:false,hasDir:true,isInst:false},
+ mods:{dir:'D:\\Games\\NSR\\mods',msg:'',list:[{n:'60 FPS UI',d:'Cemu graphic pack',s:'Works',ok:true,on:true},{n:'Sharper shadows',d:'File-replacement mod',s:'Needs files this version does not have',ok:false,on:false}]}});
+</script></body></html>
