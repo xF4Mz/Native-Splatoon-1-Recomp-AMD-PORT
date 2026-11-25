@@ -113,7 +113,6 @@ static void live_lines(char* buf, double now) {
     for (char* p = buf; *p; p++) if (*p == '\n' || *p == '\r') *p = ',';
     if (strstr(buf, "SHOT")) g_vk.screenshot = 1;
     if (strstr(buf, "DBGFRAME")) g_vk.dbg_req = 1;   // (the next frame's draws logged)
-    if (strstr(buf, "EMOTE")) { extern void splat_emote_toggle(void); splat_emote_toggle(); }   // (as F5)
     if (strstr(buf, "HIDEHUD")) { g_vk.hide_hud = !g_vk.hide_hud; printf("[input] live: HUD %s\n", g_vk.hide_hud ? "hidden" : "shown"); }   // (as F1)
     if (strstr(buf, "FREECAM")) { extern void splat_freecam_toggle(void); splat_freecam_toggle(); }   // (as F4)
     if (strstr(buf, "MEMDUMP")) { extern void splat_memdump(const char* path); splat_memdump("debug_output/memdump.bin"); }
@@ -544,10 +543,6 @@ void input_poll(void* window_ptr) {
                         g_vk.shadow_quality = (g_vk.shadow_quality + 2) % 3;   // (sharp -> normal -> off -> sharp)
                         printf("[display] shadows %s (settings)\n", g_vk.shadow_quality == 0 ? "off" : g_vk.shadow_quality == 1 ? "normal" : "sharp (2x map)");
                         break;
-                    case 22:
-                        g_vk.emote_sound = !g_vk.emote_sound;
-                        printf("[display] emote sound %s (settings)\n", g_vk.emote_sound ? "on" : "off");
-                        break;
                     case 20:
                         g_vk.plaza_30 = !g_vk.plaza_30;
                         printf("[display] plaza frame rate %s (settings)\n", g_vk.plaza_30 ? "30: the game's own there (less work for the processor)" : "60");
@@ -749,7 +744,6 @@ void input_poll(void* window_ptr) {
             s.hold = 0;
         }
     }
-    { extern void splat_emote_input(float lx, float ly, unsigned hold); splat_emote_input(s.lx, s.ly, s.hold); }
     if (pro == 3) {   // settings "Player 2" = Bot: the PC plays player 2 (dojo_bot.c)
         extern int splat_bot_pad(double now, float sticks[4], unsigned* bits);
         float st[4] = { 0, 0, 0, 0 };
@@ -759,9 +753,6 @@ void input_poll(void* window_ptr) {
             p2.hold = (b & 1 ? PAD_ZR : 0) | (b & 2 ? PAD_ZL : 0) | (b & 4 ? PAD_B : 0) | (b & 8 ? PAD_A : 0) | (b & 16 ? PAD_R : 0);
             stick_bits(&p2);
         }
-    } else {
-        extern volatile int splat_track_on;
-        splat_track_on = 0;
     }
     lock();
     if (!s.touching) { s.tx = g_pad.tx; s.ty = g_pad.ty; }   // games expect the last spot to stay

@@ -26,16 +26,16 @@ settings panel's title bar and the log's `[engine]` line.
 
 ## What is Splatoon (stays with the game)
 
-native_funcs.c (camera guard, FOV, projection hooks at game addresses), emote.c, freecam.c,
+native_funcs.c (camera guard, FOV, projection hooks at game addresses), camera_track.c (the game's camera, the player's position), freecam.c,
 benchmark.c (map table swap, scene names), online.c / net_offline.c (NEX, offline only), scene_place.c (where the player is)
-(the card's places), rain_sound.c, tools/save_story100.py, the generated code in
+rain_sound.c, the generated code in
 `splatoon_v272\generated\`, pipeline_keys.bin, shader_cache.bin and the `cache\` folder.
 
 ## The address problem
 
 Every game-specific thing above is a PowerPC address (02xxxxxx code, 10xxxxxx data) found by hand
 for Splatoon v272. Counted Oct 31: about 55 such addresses across main.c (11), nan_trap.c (9),
-emote.c (6), latte_render.c (5), gx2.c (4), native_funcs.c (4), scan.c (4), hle.c (3) and a few
+camera_track.c (1), latte_render.c (5), gx2.c (4), native_funcs.c (4), scan.c (4), hle.c (3) and a few
 others. The cleanest second-port path is one `game_table.h` per game holding those addresses and
 flags (which bit asks for 30 fps, which cameras are scene cameras, which buffer is the sun shadow
 map), with the engine files reading the table instead of literals. Nothing forces that split now;

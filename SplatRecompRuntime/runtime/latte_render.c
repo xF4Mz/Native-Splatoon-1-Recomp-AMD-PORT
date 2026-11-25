@@ -6223,7 +6223,7 @@ void latte_render_draw(const LatteDraw* dr) {
     }
     if (raster_off && !so_draw) { DBG("draw skipped: rasterization off\n"); return; }
     // F1: no HUD / menus on the TV picture. Their draws are the layouts': a vertex-shader constant row
-    // (0, 0, +-1, -+D) with D the distance of a layout camera (emote.c notes them: 989.1 for the 720-high
+    // (0, 0, +-1, -+D) with D the distance of a layout camera (camera_track.c notes them: 989.1 for the 720-high
     // HUD, 494.5, 791.3...) -- the view's z, alone or folded into the whole matrix. The GamePad's HUD
     // (its cameras are nearer) stays.
     if ((g_vk.hide_hud || (fg_n() && !g_fg.scene_copied)) && vs->info.cfile_count && !so_draw) {
@@ -8626,7 +8626,7 @@ static void sx_draw_view(VkPipeline pipe, Img* out, VkImageView in_view, VkSampl
     g.need_barrier = true;
 }
 static float sky_time(void) { return (float)fmod((double)pf_now() / 1e9, 20000.0); }
-// The game's sun (its light cameras, emote.c), or SPLAT_SKY_SUN="azimuth,elevation" in degrees.
+// The game's sun (its light cameras, camera_track.c), or SPLAT_SKY_SUN="azimuth,elevation" in degrees.
 static void sky_sun(float s[3]) {
     static int env = -1;
     static float ea, ee;
@@ -8682,8 +8682,8 @@ static void sky_grade_pass(Surf* s) {
     {
         float cp[3], fw[3], sn[3];
         int fresh = 0;
-        void splat_emote_camera_now(float pos[3], float dir[3], int* fresh);
-        splat_emote_camera_now(cp, fw, &fresh);
+        void splat_camera_now(float pos[3], float dir[3], int* fresh);
+        splat_camera_now(cp, fw, &fresh);
         extern volatile int splat_cam_fovy_now_x10;
         sky_sun(sn);
         float rx = -fw[2], rz = fw[0], rl = sqrtf(rx * rx + rz * rz);   // (right = forward x up)
@@ -8706,7 +8706,7 @@ static void sky_grade_pass(Surf* s) {
 }
 
 // --- Motion blur (settings SHADERS "Motion blur": off / light / strong; SPLAT_MOTION_BLUR=0|1|2) ----------------------
-// Camera motion blur from the camera's TURN between the shown frame and the one before (emote.c's per-frame camera):
+// Camera motion blur from the camera's TURN between the shown frame and the one before (camera_track.c's per-frame camera):
 // each pixel's view ray is put into the previous frame's camera, which gives where that point was on the screen; the
 // picture is averaged along that path (12 taps, centred). Rotation only -- turning is where blur shows; moving straight
 // changes little on screen. After the game's tone-map, before the HUD (the HUD stays sharp). Kept gentle (a fraction of
@@ -8788,7 +8788,7 @@ static void motion_blur_pass(Surf* s) {
 }
 
 // --- The 3D clouds (SHADERS "3D clouds"): a cloud layer with thickness at real heights in the world, marched per
-// pixel from the camera (the same game frame's camera, emote.c) to the scene's depth -- in front of buildings when the
+// pixel from the camera (the same game frame's camera, camera_track.c) to the scene's depth -- in front of buildings when the
 // camera is up among them (free camera), behind them otherwise. Half resolution, then blended into the scene buffer
 // (picture * transmittance + light) right after the sky dome, before the game's own depth of field / glow / tone-map.
 // Noise: two tiling 3D textures made at start on a thread of their own (a 128^3 Perlin-Worley shape, a 32^3 Worley
@@ -10154,7 +10154,6 @@ static void draw_settings(VkCommandBuffer cb, VkImage target, int sub) {
     snprintf(v[18], 48, "%s", g_vk.tracker_on ? "on   (Ctrl+F6)" : "off  (Ctrl+F6)");
     snprintf(v[19], 48, "%s", g_vk.pad_layout ? "Nintendo (by position)" : "Xbox (A = A, B = B)");
     snprintf(v[20], 48, "%s", g_vk.perf_mode ? "30   (Performance mode)" : g_vk.plaza_30 ? "30   (the game's own)" : "60");
-    snprintf(v[22], 48, "%s   (F5 dances)", g_vk.emote_sound ? "on" : "off");
     {
         extern bool input_second_pad(void);
         snprintf(v[32], 48, "%s", !g_vk.pro_pad ? "off" : g_vk.pro_pad == 3 ? "Bot (Battle Dojo)" : g_vk.pro_pad == 2 ? "Pro Controller (always)" : input_second_pad() ? "2nd controller = Pro Ctrl" : "on   (plug in a 2nd pad)");
@@ -10190,7 +10189,7 @@ static void draw_settings(VkCommandBuffer cb, VkImage target, int sub) {
         { -1, "DEBUG" }, { 17, "Debug views" } };
     static const SetItem col1[] = {
         { -1, "GAMEPAD" }, { 5, "GamePad screen" }, { 11, "GamePad size" }, { 12, "GamePad cursor" }, { 16, "GamePad pop-up" },
-        { -1, "CONTROLS & SOUND" }, { 19, "Button layout" }, { 32, "Player 2" }, { 36, "Mouse aim" }, { 37, "Motion controller" }, { 14, "Volume" }, { 22, "Emote sound" },
+        { -1, "CONTROLS & SOUND" }, { 19, "Button layout" }, { 32, "Player 2" }, { 36, "Mouse aim" }, { 37, "Motion controller" }, { 14, "Volume" },
         { -1, "SHADERS" }, { 24, "Sky" }, { 25, "3D clouds" }, { 28, "God rays & haze" }, { 29, "Cloud shadows" }, { 30, "Ambient occlusion" }, { 31, "Rain" }, { 26, "Colour grade" }, { 38, "Motion blur" }, { 27, "Shader quality" } };
     const int n0 = (int)(sizeof(col0) / sizeof(col0[0])), n1 = (int)(sizeof(col1) / sizeof(col1[0]));
     int py = gy + BAR_H + 4, pxl = 8;   // (under the counter, from the left: two columns fit a 1280-wide window)

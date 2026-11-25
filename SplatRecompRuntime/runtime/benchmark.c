@@ -31,7 +31,7 @@ void input_live_push(const char* line);
 void splat_freecam_place(const float pos[3], float yaw, float pitch);
 void splat_freecam_off(void);
 void splat_player_pos(float pos[3], int* fresh);
-void splat_emote_camera_now(float pos[3], float dir[3], int* fresh);
+void splat_camera_now(float pos[3], float dir[3], int* fresh);
 u32 gx2_frame_count(void);
 
 static int g_on = -1;
@@ -364,7 +364,7 @@ static void sweep_begin(void) {
     splat_player_pos(p, &fresh);
     float cp[3];
     int cf = 0;
-    splat_emote_camera_now(cp, d, &cf);
+    splat_camera_now(cp, d, &cf);
     if (!fresh && cf) memcpy(p, cp, 12);
     memcpy(g_p0, p, 12);
     g_yaw0 = cf ? atan2f(d[0], d[2]) : 0.0f;

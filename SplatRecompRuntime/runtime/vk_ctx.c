@@ -287,7 +287,6 @@ static const SettingDef k_settings[] = {
     { "button_layout", &g_vk.pad_layout, "SPLAT_PAD_LAYOUT", 0, 1 },
     { "settings_box_hidden", &g_vk.hide_settings, NULL, 0, 1 },
     { "plaza_30fps", &g_vk.plaza_30, "SPLAT_PLAZA_30", 0, 1 },
-    { "emote_sound", &g_vk.emote_sound, "SPLAT_EMOTE_SOUND", 0, 1 },
     { "shadow_quality", &g_vk.shadow_quality, "SPLAT_SHADOWS", 0, 2 },
     { "sky_light", &g_vk.sky_mode, "SPLAT_SKY", 0, 2 },
     { "shader_clouds", &g_vk.sh_clouds, "SPLAT_SH_CLOUDS", 0, 1 },
@@ -369,7 +368,6 @@ void vkctx_settings_save(void) {
 bool vkctx_create(void* window) {
     g_vk.volume = 100;
     g_vk.low_latency = 1;   // (on by default: the plaza bench was no worse with it, 61.9 vs 57.3 fps, and the lag is one frame)
-    g_vk.emote_sound = 1;
     g_vk.shadow_quality = 2;
     g_vk.sh_clouds = 1;
     g_vk.sh_grade = 1;
@@ -390,7 +388,6 @@ bool vkctx_create(void* window) {
         if (e && atoi(e) >= d->lo && atoi(e) <= d->hi) *d->v = atoi(e);
     }
     { const char* e = getenv("SPLAT_VOLUME"); if (e) g_vk.volume = atoi(e); }   // (test runs: SPLAT_VOLUME=0, silent)
-    { extern void splat_emote_init(void); splat_emote_init(); }
     { extern void gyro_start(void); gyro_start(); }
     bool ok = create(window);
     g_vk.state = ok ? 1 : -1;

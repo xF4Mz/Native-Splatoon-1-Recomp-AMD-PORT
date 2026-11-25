@@ -81,7 +81,6 @@ typedef struct {
     volatile int hide_settings;                                    // F10: the SETTINGS box hidden (like F3 for the counter)
     volatile int plaza_30;                                         // settings "Plaza frame rate": 1 = the game's own 30 there (for slower PCs)
     volatile int gpu_pct;                                          // how busy the graphics card is with the game's frames (-1: can't tell)
-    volatile int emote_sound;                                      // settings "Emote sound": the F5 dance's music (emote.c)
     volatile int hide_hud;                                         // F1: the TV picture without its HUD / menus (latte_render.c)
     volatile int sky_mode;                                         // SHADERS "Sky": 0 the game's own, 1 Splatoon (sunny), 2 Storm (latte_render.c)
     volatile int dojo_both;                                       // "Dojo views": 1 = both players' 3D views every frame in the 2-player Dojo (native_funcs.c splat_native_duel_draw)

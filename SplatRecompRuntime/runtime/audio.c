@@ -308,7 +308,6 @@ static void out_session(void) {
             g_q_read = (r + take) & (OUT_QUEUE - 1);
             if (take < n) { InterlockedIncrement(&g_underruns); buffering = true; }
         }
-        { extern void splat_emote_mix(float* out, u32 n, u32 channels, u32 rate, float vol); splat_emote_mix(f, n, channels, g_out_rate, audio_volume()); }
         { extern void splat_rain_mix(float* out, u32 n, u32 channels, u32 rate, float vol); splat_rain_mix(f, n, channels, g_out_rate, audio_volume()); }   // (the Storm sky's rain, rain_sound.c)
         {   // (SPLAT_AUDIO_OUT_WAV=file: what the speakers were given, 16-bit stereo at their rate)
             static FILE* wf = NULL;

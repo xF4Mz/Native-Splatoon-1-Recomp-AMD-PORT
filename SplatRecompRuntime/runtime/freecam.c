@@ -4,7 +4,7 @@
 // Shift / ZL down, right mouse button / ZR faster.
 //
 // How: sead::LookAtCamera's update (game address 028E6CFC, native_funcs.c) gets, for the camera that
-// follows the player (its target kept 1 unit ahead of it: emote.c finds it), this camera's position
+// follows the player (its target kept 1 unit ahead of it: camera_track.c finds it), this camera's position
 // and target written in just before it builds its view matrix. The world is culled and drawn from
 // there by the game itself.
 #include <stdio.h>
@@ -18,13 +18,13 @@ volatile int splat_freecam_on;
 static float g_fc_pos[3], g_fc_yaw, g_fc_pitch;
 static volatile int g_fc_seeded;
 
-void splat_emote_camera_now(float pos[3], float dir[3], int* fresh);   // (emote.c: the game's own camera, last frame)
+void splat_camera_now(float pos[3], float dir[3], int* fresh);   // (camera_track.c: the game's own camera, last frame)
 
 void splat_freecam_toggle(void) {
     if (!splat_freecam_on) {
         float p[3], d[3];
         int fresh = 0;
-        splat_emote_camera_now(p, d, &fresh);
+        splat_camera_now(p, d, &fresh);
         if (!fresh) { printf("[freecam] no game camera to start from yet\n"); return; }
         memcpy(g_fc_pos, p, sizeof(p));
         g_fc_yaw = atan2f(d[0], d[2]);
@@ -83,7 +83,7 @@ void splat_freecam_input(float lx, float ly, float rx, float ry, unsigned hold, 
     }
 }
 
-// (emote.c, for the camera that follows the player, before the game builds its view matrix)
+// (camera_track.c, for the camera that follows the player, before the game builds its view matrix)
 void splat_freecam_apply(u32 cam) {
     if (!splat_freecam_on || !g_fc_seeded || !wiiu_fastmem) return;
     float d[3] = { cosf(g_fc_pitch) * sinf(g_fc_yaw), sinf(g_fc_pitch), cosf(g_fc_pitch) * cosf(g_fc_yaw) };

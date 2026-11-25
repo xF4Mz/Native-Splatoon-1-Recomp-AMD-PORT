@@ -312,7 +312,7 @@ int splat_native_perspective(CPUState* ctx) {
     if (fov_all < 0) fov_all = getenv("SPLAT_FOV_ALL_CAMS") != NULL;
     // (the camera that follows the player zooms down to 26 degrees in cutscenes, super jumps and the plaza's intro -- the
     // same camera object; a camera once seen at 50 or more stays a scene camera below 50, or the field of view would jump
-    // and the volume pass (clouds, rain, puddles: emote.c's camera ring takes splat_cam_fovy_now_x10) would keep a stale one)
+    // and the volume pass (clouds, rain, puddles: camera_track.c's camera ring takes splat_cam_fovy_now_x10) would keep a stale one)
     static u32 scene_cams[16];
     static int n_scene_cams;
     bool known_scene = false;
@@ -323,7 +323,7 @@ int splat_native_perspective(CPUState* ctx) {
               is_close ? " (a close-up camera: menus, FOV setting skipped)" : " (a scene camera)");
     if (is_tv && !is_hud && !is_map && !is_close) {
         splat_cam_fovy_x10 = (int)(fovy_deg * 10.0f + 0.5f);
-        extern volatile float splat_cam_near, splat_cam_far;   // (emote.c: the effects' per-frame camera)
+        extern volatile float splat_cam_near, splat_cam_far;   // (camera_track.c: the effects' per-frame camera)
         splat_cam_near = nr; splat_cam_far = fr;
     }
     if (is_map || is_close) add = 0;
@@ -491,7 +491,7 @@ static bool cam_guard(const char* what, u32 self, u32 a, u32 n) {
 // r4 = the 3x4 view matrix it writes.
 int splat_native_lookat(CPUState* ctx) {
     if (wiiu_fastmem) cam_guard("look-at camera", ctx->gpr[3], ctx->gpr[3] + 52, 9);
-    { extern void splat_emote_camera(u32 cam); splat_emote_camera(ctx->gpr[3]); }   // (emote.c: which Inkling is the player's)
+    { extern void splat_camera_seen(u32 cam); splat_camera_seen(ctx->gpr[3]); }   // (camera_track.c: the camera per frame, which Inkling is the player's)
     return 0;
 }
 

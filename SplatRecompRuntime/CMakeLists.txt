@@ -310,8 +310,7 @@ target_link_libraries(${RUNNER_NAME} PRIVATE ZLIB::ZLIB Threads::Threads glfw vo
 if(WIN32)
     # the built-in NSR launcher window (runtime/nsr_wizard.c): WebView2, the file pickers, SHA-256
     # (the window is WebView2: Microsoft's static loader from the Microsoft.Web.WebView2 NuGet package, launcher/third_party/webview2)
-    # (mfplat / mfreadwrite / mfuuid: an emote's sound decoded by Windows' Media Foundation, runtime/emote.c)
-    target_link_libraries(${RUNNER_NAME} PRIVATE ole32 shell32 user32 gdi32 advapi32 version shlwapi mfplat mfreadwrite mfuuid
+    target_link_libraries(${RUNNER_NAME} PRIVATE ole32 shell32 user32 gdi32 advapi32 version shlwapi
         "${CMAKE_CURRENT_SOURCE_DIR}/../launcher/third_party/webview2/WebView2LoaderStatic.lib")
 endif()
 # Point the generated code at runtime/fast_cpu.h (direct guest memory access)

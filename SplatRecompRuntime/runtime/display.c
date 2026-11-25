@@ -123,9 +123,6 @@ static void on_key(GLFWwindow* w, int key, int scancode, int action, int mods) {
     } else if (key == GLFW_KEY_F2) {    // (the panel open / closed)
         g_vk.settings_open = !g_vk.settings_open;
         if (g_vk.settings_open) g_vk.hide_settings = 0;
-    } else if (key == GLFW_KEY_F5) {   // (the emote: emote.c)
-        extern void splat_emote_toggle(void);
-        splat_emote_toggle();
     } else if (key == GLFW_KEY_F9) {
         g_vk.want_dump = 1;
         printf("[display] F9: writing the freeze watchdog's dump (what the game is doing / waiting for)\n");
@@ -357,7 +354,7 @@ static int display_thread(void* arg) {
                 snprintf(title, sizeof(title), "Splatoon Recomp | preparing graphics for this area: %u built (only the first time you visit it)", builds - builds_at_start);
             } else {
                 builds_at_start = 0;
-                snprintf(title, sizeof(title), "Splatoon Recomp | game frame %u | %.1f fps (game %.1f) | %u draws | hold View or M: GamePad screen, tap View: - | F1 HUD, F4 free camera, F5 emote, F6 benchmark, F11 fullscreen, F3 fps, F12 screenshot",
+                snprintf(title, sizeof(title), "Splatoon Recomp | game frame %u | %.1f fps (game %.1f) | %u draws | hold View or M: GamePad screen, tap View: - | F1 HUD, F4 free camera, F6 benchmark, F11 fullscreen, F3 fps, F12 screenshot",
                          frames, fps, game_fps, g_vk.draws_last_frame);
             }
             builds_seen = builds;
